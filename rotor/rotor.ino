@@ -168,15 +168,38 @@ void displayMenu() {
 
 //// Auto Tracking ////
 void RunAutoTrack() {
+  Tracking();
+
+  if (digitalRead(BUTTON1_PIN)==HIGH) {     // exit RunAutoTrack and go back to menu mode if button1 pressed and released
+    while(digitalRead(BUTTON1_PIN)==HIGH);
+    menu_mode = true;
+    AutoTrackEnabled = false;
+    enc_data = 0;
+  }
+
+  if (digitalRead(ENC_SW_PIN)==LOW) {   // in AutoTrack mode start tracking antenna when sw button pressed
+    while(digitalRead(ENC_SW_PIN)==LOW);
+    RunTracking = !RunTracking;
+  }
+}
+
+//// Manual Tracking ////    
+void RunManualTrack() {
+  Tracking();
+  RunTracking = true;   // in ManualTrack mode antenna tracked all time until exit to menu
+
+  if (digitalRead(BUTTON1_PIN)==HIGH) {     // exit RunAutoTrack and go back to menu mode if button1 pressed and released
+    while(digitalRead(BUTTON1_PIN)==HIGH);
+    menu_mode = true;
+    ManualTrackEnabled = false;
+    RunTracking = false;
+    enc_data = 0;
+  }
+}
+
+//// Antenna tracking ////
+void Tracking() {
   if (RunTracking) { RotateAntenna(); }
-  if (AzMan != AzMan_old) {
-    display_AzMan(); 
-    AzMan_old = AzMan;
-  }
-  if (AzAnt != AzAnt_old) {
-    display_AzAnt(); 
-    AzAnt_old = AzAnt;
-  }
   
   if (enc_data < 0) { enc_data = 0; };
   if (enc_data > 35 && FastTrackEnabled) { enc_data = 35; }
@@ -188,31 +211,13 @@ void RunAutoTrack() {
     AzMan = enc_data;
   }
 
-  if (digitalRead(BUTTON1_PIN)==HIGH) {     // exit RunAutoTrack and go back to menu mode if button1 pressed and released
-    while(digitalRead(BUTTON1_PIN)==HIGH);
-    menu_mode = true;
-    AutoTrackEnabled = false;
-    enc_data = 0;
+  if (AzMan != AzMan_old) {
+    display_AzMan(); 
+    AzMan_old = AzMan;
   }
-
-  if (digitalRead(ENC_SW_PIN)==LOW) {   // Start tracking antenna
-    while(digitalRead(ENC_SW_PIN)==LOW);
-    RunTracking = !RunTracking;
-  }
-}
-
-//// Manual Tracking   -  not implemented yet !! ////    
-void RunManualTrack() {
-
-  if (enc_data < 0) { enc_data = 0; }
-  if (enc_data > 359) { enc_data = 359; }
-  AzMan = enc_data;
-
-  if (digitalRead(BUTTON1_PIN)==HIGH) {     // exit RunAutoTrack and go back to menu mode if button1 pressed and released
-    while(digitalRead(BUTTON1_PIN)==HIGH);
-    menu_mode = true;
-    ManualTrackEnabled = false;
-    enc_data = 0;
+  if (AzAnt != AzAnt_old) {
+    display_AzAnt(); 
+    AzAnt_old = AzAnt;
   }
 }
 
