@@ -39,7 +39,7 @@ volatile unsigned long sens_last_interrupt_time = 0;
 volatile unsigned long enc_last_interrupt_time = 0;
 
 
-////////////////////////////////////////////////////
+////  setup ////
 void setup() {
   lcd.init(); 
   lcd.begin(20,4);
@@ -67,13 +67,13 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(SENSOR_PIN), sensor_blink, LOW);
   attachInterrupt(digitalPinToInterrupt(ENC_CLK_PIN), enc_inter, RISING);
 
-//  displayStartInfo();
+  displayStartInfo();
   lcd.clear();
 
   enc_data = 0;
 }
 
-
+//// display info on startup ////
 void displayStartInfo() {
   lcd.setCursor(0, 0);
   lcd.print("  Sterownik rotora  ");
@@ -129,7 +129,6 @@ void loop() {
           break;
       }
     }
-  
   } else {          // we are not in menu mode, either AutoTracking or ManualTracking
     if (AutoTrackEnabled) {
       RunAutoTrack();
@@ -156,7 +155,7 @@ void displayMenu() {
   lcd.print("                    ");
 
   switch(enc_data) {
-    case 2:
+    case 2:                 // display if menu 2 chosen 
       lcd.setCursor(0,3);
       if (FastTrackEnabled) {
         lcd.print("enabled             ");
@@ -165,7 +164,7 @@ void displayMenu() {
       }
       break;
 
-    case 3:
+    case 3:                 // display if menu 3 chosen
       lcd.setCursor(0,3);
       lcd.print("Ant: ");
       sprintf(lcd_chars, "%03d", AzAnt);
@@ -225,7 +224,7 @@ void RunManualTrack() {
   }
 }
 
-//// Antenna tracking ////
+//// Antenna tracking - common function ////
 void Tracking() {
   if (RunTracking) { RotateAntenna(); }
   
@@ -291,6 +290,7 @@ void DisplayTrackInfo(byte trackmode) {
   lcd.setCursor(10,2);
 }
 
+//// Antenna rotation ////
 void RotateAntenna() {
   // Rotate left
   if (AzMan < AzAnt) {
@@ -327,6 +327,7 @@ void RotateAntenna() {
   }
 }
 
+//// function called by sensor interrupt ////
 void sensor_blink() {
   unsigned long now_millis = millis();
   if ((now_millis - sens_last_interrupt_time) > 10) {
@@ -335,7 +336,7 @@ void sensor_blink() {
   }
 }
 
-//// interrupt call when CLK rise
+//// function called by encoder interrupt (CLK rise) ////
 void enc_inter() {
   unsigned long now_millis = millis();
   if ((now_millis - enc_last_interrupt_time) > 4) {
