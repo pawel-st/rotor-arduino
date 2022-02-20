@@ -16,7 +16,7 @@ volatile int enc_data;
 
 // menu variables
 # define menuSize 4
-char *menu[] ={"Auto Track","Manual Track","Fast Track","Azimuth Calibrate"};
+char *menu[] ={"Auto Track","Manual Track","Fast Track","Reset Azimuth"};
 bool menu_mode = true;            // starting in menu mode
 bool AutoTrackEnabled = false;    // AutoTrack mode
 bool ManualTrackEnabled = false;  // ManualTrack mode
@@ -59,7 +59,7 @@ void setup() {
   while (digitalRead(SENSOR_PIN) == LOW)  // rotate motor if sensor stuck in low state
   {
     digitalWrite(MOTOR_LEFT_PIN, LOW);
-    delay(40);
+    delay(80);
   }
   digitalWrite(MOTOR_RIGHT_PIN, HIGH);
   digitalWrite(MOTOR_LEFT_PIN, HIGH);
@@ -104,23 +104,28 @@ void loop() {
       while(digitalRead(ENC_SW_PIN)==LOW);
 
       switch(enc_data) {
-        case 0:    // AutoTrack
+        case 0:                         // AutoTrack
           AutoTrackEnabled = true;
           menu_mode = false;
           enc_data = AzMan;
           DisplayTrackInfo(0);
           break;
 
-        case 1:   // ManualTrack
+        case 1:                         // ManualTrack
           ManualTrackEnabled = true;
           menu_mode = false;
           enc_data = AzMan;
           DisplayTrackInfo(1);
           break;
 
-        case 2:   // FastTrack
+        case 2:                         // FastTrack
           FastTrackEnabled = !FastTrackEnabled;
           menu_mode = true;
+          break;
+
+        case 3:                         // ResetAzimuth
+          AzMan=0;
+          AzAnt=0;
           break;
       }
     }
@@ -154,12 +159,26 @@ void displayMenu() {
     case 2:
       lcd.setCursor(0,3);
       if (FastTrackEnabled) {
-        lcd.print("enabled ");
+        lcd.print("enabled             ");
       } else {
-        lcd.print("disabled");
+        lcd.print("disabled            ");
       }
       break;
 
+    case 3:
+      lcd.setCursor(0,3);
+      lcd.print("Ant: ");
+      sprintf(lcd_chars, "%03d", AzAnt);
+      lcd.setCursor(5,3);
+      lcd.print(lcd_chars);
+
+      lcd.setCursor(12,3);
+      lcd.print("Set: ");
+      sprintf(lcd_chars, "%03d", AzMan);
+      lcd.setCursor(17,3);
+      lcd.print(lcd_chars);
+      break;
+          
     default:
       lcd.setCursor(0,3);
       lcd.print("                    ");
@@ -179,7 +198,16 @@ void RunAutoTrack() {
 
   if (digitalRead(ENC_SW_PIN)==LOW) {   // in AutoTrack mode start tracking antenna when sw button pressed
     while(digitalRead(ENC_SW_PIN)==LOW);
-    RunTracking = !RunTracking;
+    if (RunTracking==false) {
+      RunTracking=true;
+    } else {
+      RunTracking=false;                // stop rotation immediately
+      if (digitalRead(SENSOR_PIN)==LOW) { delay(80); }
+      digitalWrite(MOTOR_RIGHT_PIN, HIGH);
+      digitalWrite(MOTOR_LEFT_PIN, HIGH);
+      lcd.setCursor(10,3);
+      lcd.print("        ");
+    }
   }
 }
 
@@ -261,11 +289,6 @@ void DisplayTrackInfo(byte trackmode) {
   lcd.setCursor(5,3);
   lcd.print(lcd_chars);
   lcd.setCursor(10,2);
-  if (RunTracking) {
-    lcd.print("Rotating");
-  } else {
-    lcd.print("        ");
-  }
 }
 
 void RotateAntenna() {
@@ -286,7 +309,7 @@ void RotateAntenna() {
   }
 
   // if we rotate left and condition reached then stop rotating 
-  if (!RotateRight && (AzAnt <= AzMan)) {
+  if ((RotateRight==false) && (AzAnt <= AzMan)) {
     RunTracking = false;
     lcd.setCursor(10,3);
     lcd.print("        ");
@@ -295,7 +318,7 @@ void RotateAntenna() {
   }
 
   // if we rotate right and condition reached then stop rotating 
-  if (RotateRight && (AzAnt >= AzMan)) {
+  if ((RotateRight==true) && (AzAnt >= AzMan)) {
     RunTracking = false;
     lcd.setCursor(10,3);
     lcd.print("        ");
