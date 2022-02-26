@@ -1,5 +1,8 @@
+#include <Wire.h>
+#include <HMC5883L.h>
 #include <LiquidCrystal_I2C.h>
 LiquidCrystal_I2C lcd(0x27,20,4);
+HMC5883L compass;
 
 // pin definitions
 #define ENC_CLK_PIN  3
@@ -10,6 +13,9 @@ LiquidCrystal_I2C lcd(0x27,20,4);
 #define MOTOR_LEFT_PIN 10
 #define MOTOR_RIGHT_PIN 11
 #define SENSOR_PIN 2
+
+// hmc refresh (ms)
+#define HMC_REFRESH_INTERVAL 500
 
 // encoder variables
 volatile int enc_data;
@@ -25,6 +31,7 @@ int FastMultiplier = 10;          // FastTrack multiplier
 
 // antenna variables
 volatile unsigned int AzAnt = 0;  // antenna azimuth (real)
+unsigned int magn_azim;           // magnetic azimuth (real)
 unsigned int AzAnt_old = 0;
 unsigned int AzMan = 0;           // manually set azimuth (requested)
 unsigned int AzMan_old = 0;
@@ -37,6 +44,7 @@ char lcd_chars[4];
 char lcd_line[20];
 volatile unsigned long sens_last_interrupt_time = 0;
 volatile unsigned long enc_last_interrupt_time = 0;
+unsigned long hmc_previous_millis;
 
 
 ////  setup ////
@@ -71,6 +79,12 @@ void setup() {
   lcd.clear();
 
   enc_data = 0;
+  compass.begin();
+  compass.setRange(HMC5883L_RANGE_1_3GA);
+  compass.setMeasurementMode(HMC5883L_CONTINOUS);
+  compass.setDataRate(HMC5883L_DATARATE_30HZ);
+  compass.setSamples(HMC5883L_SAMPLES_8);
+  compass.setOffset(150, -289);
 }
 
 //// display info on startup ////
@@ -246,6 +260,7 @@ void Tracking() {
     display_AzAnt(); 
     AzAnt_old = AzAnt;
   }
+  display_AzMag();
 }
 
 
@@ -263,6 +278,15 @@ void display_AzAnt() {
   lcd.print(lcd_chars);
 }
 
+//// display only magnetic azimuth ////
+void display_AzMag() {
+  lcd.setCursor(11,2);
+  lcd.print("Magn: ");
+  GetMagneticAzimuth();
+  sprintf(lcd_chars, "%03d", magn_azim);
+  lcd.setCursor(17,2);
+  lcd.print(lcd_chars);
+}
 
 //// display lcd info in Tracking mode (auto and manual) ////
 void DisplayTrackInfo(byte trackmode) {
@@ -282,6 +306,7 @@ void DisplayTrackInfo(byte trackmode) {
   sprintf(lcd_chars, "%03d", AzAnt);
   lcd.setCursor(5,2);
   lcd.print(lcd_chars);
+
   lcd.setCursor(0,3);
   lcd.print("Set: ");
   sprintf(lcd_chars, "%03d", AzMan);
@@ -289,6 +314,22 @@ void DisplayTrackInfo(byte trackmode) {
   lcd.print(lcd_chars);
   lcd.setCursor(10,2);
 }
+
+//// Get HMC5883L azimuth ////
+void GetMagneticAzimuth() {
+  unsigned long currentMillis = millis();
+  if (currentMillis - hmc_previous_millis >= HMC_REFRESH_INTERVAL) {
+    hmc_previous_millis = currentMillis;
+    Vector norm = compass.readNormalize();
+    float heading = atan2(norm.YAxis, norm.XAxis);
+    float correctionAngle = 85 / (180 / M_PI);
+    heading += correctionAngle;
+    if (heading < 0)      { heading += 2 * PI; }
+    if (heading > 2 * PI) { heading -= 2 * PI; }
+    magn_azim = heading * 180/M_PI; 
+  }
+}
+
 
 //// Antenna rotation ////
 void RotateAntenna() {
