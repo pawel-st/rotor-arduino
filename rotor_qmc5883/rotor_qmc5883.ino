@@ -1,8 +1,9 @@
+// need to install external library : https://github.com/mechasolution/Mecha_QMC5883L
 #include <Wire.h>
-#include <HMC5883L.h>
+#include <MechaQMC5883.h>
 #include <LiquidCrystal_I2C.h>
 LiquidCrystal_I2C lcd(0x27,20,4);
-HMC5883L compass;
+MechaQMC5883 qmc;
 
 // pin definitions
 #define ENC_CLK_PIN  3
@@ -39,7 +40,7 @@ boolean RunTracking = false;      // Rotating enabled
 boolean RotateRight = false;      // Rotate direction (right=true, left=false)
 
 // additional variables
-const String code_version = "1.0";   // version
+const String code_version = "1.1";   // version
 char lcd_chars[4];
 char lcd_line[20];
 volatile unsigned long sens_last_interrupt_time = 0;
@@ -79,12 +80,8 @@ void setup() {
   lcd.clear();
 
   enc_data = 0;
-  compass.begin();
-  compass.setRange(HMC5883L_RANGE_1_3GA);
-  compass.setMeasurementMode(HMC5883L_CONTINOUS);
-  compass.setDataRate(HMC5883L_DATARATE_30HZ);
-  compass.setSamples(HMC5883L_SAMPLES_8);
-  compass.setOffset(150, -289);
+  Wire.begin();
+  qmc.init();
 }
 
 //// display info on startup ////
@@ -315,18 +312,13 @@ void DisplayTrackInfo(byte trackmode) {
   lcd.setCursor(10,2);
 }
 
-//// Get HMC5883L azimuth ////
+//// Get QMC5883L azimuth ////
 void GetMagneticAzimuth() {
   unsigned long currentMillis = millis();
   if (currentMillis - hmc_previous_millis >= HMC_REFRESH_INTERVAL) {
     hmc_previous_millis = currentMillis;
-    Vector norm = compass.readNormalize();
-    float heading = atan2(norm.YAxis, norm.XAxis);
-    float correctionAngle = 85 / (180 / M_PI);
-    heading += correctionAngle;
-    if (heading < 0)      { heading += 2 * PI; }
-    if (heading > 2 * PI) { heading -= 2 * PI; }
-    magn_azim = heading * 180/M_PI; 
+    int x,y,z,a;
+    qmc.read(&x,&y,&z,&magn_azim);
   }
 }
 
