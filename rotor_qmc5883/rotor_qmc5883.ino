@@ -16,7 +16,7 @@ MechaQMC5883 qmc;
 #define SENSOR_PIN 2
 
 // hmc refresh (ms)
-#define HMC_REFRESH_INTERVAL 500
+#define HMC_REFRESH_INTERVAL 1000
 
 // encoder variables
 volatile int enc_data;
@@ -82,6 +82,7 @@ void setup() {
   enc_data = 0;
   Wire.begin();
   qmc.init();
+  qmc.setMode(Mode_Continuous,ODR_200Hz,RNG_8G,OSR_512);
 }
 
 //// display info on startup ////
@@ -317,7 +318,7 @@ void GetMagneticAzimuth() {
   unsigned long currentMillis = millis();
   if (currentMillis - hmc_previous_millis >= HMC_REFRESH_INTERVAL) {
     hmc_previous_millis = currentMillis;
-    int x,y,z,a;
+    int x,y,z;
     qmc.read(&x,&y,&z,&magn_azim);
   }
 }
