@@ -15,8 +15,12 @@ MechaQMC5883 qmc;
 #define MOTOR_RIGHT_PIN 11
 #define SENSOR_PIN 2
 
-// hmc refresh (ms)
+// qmc refresh (ms)
 #define HMC_REFRESH_INTERVAL 1000
+
+// qmc offset
+int magn_off_x = 272;
+int magn_off_y = -570;
 
 // encoder variables
 volatile int enc_data;
@@ -319,7 +323,14 @@ void GetMagneticAzimuth() {
   if (currentMillis - hmc_previous_millis >= HMC_REFRESH_INTERVAL) {
     hmc_previous_millis = currentMillis;
     int x,y,z;
-    qmc.read(&x,&y,&z,&magn_azim);
+    qmc.read(&x,&y,&z);
+
+    float heading = atan2(x - magn_off_x, y - magn_off_y);
+    float correctionAngle = 85 / (180 / M_PI);
+    heading += correctionAngle;
+    if (heading < 0)      { heading += 2 * PI; }
+    if (heading > 2 * PI) { heading -= 2 * PI; }
+    magn_azim = heading * 180/M_PI; 
   }
 }
 
