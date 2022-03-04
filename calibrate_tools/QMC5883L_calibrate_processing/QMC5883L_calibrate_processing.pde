@@ -37,6 +37,9 @@ void setup ()
   strokeWeight(3);
   textSize(12);
 
+// Serial.list()[0] - first serial port in OS
+// Serial.list()[1] - second serial port in OS
+// ....
   myPort = new Serial(this, Serial.list()[0], 9600);
   myPort.bufferUntil(10);
 }
