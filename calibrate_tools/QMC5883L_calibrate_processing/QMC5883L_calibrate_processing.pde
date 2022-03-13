@@ -40,7 +40,7 @@ void setup ()
 // Serial.list()[0] - first serial port in OS
 // Serial.list()[1] - second serial port in OS
 // ....
-  myPort = new Serial(this, Serial.list()[0], 9600);
+  myPort = new Serial(this, Serial.list()[1], 9600);
   myPort.bufferUntil(10);
 }
 
@@ -54,7 +54,7 @@ void draw()
   fill(255);  // Set fill to white
   text(minX+" "+maxX+" = "+offX, 10, 20);
   text(minY+" "+maxY+" = "+offY, 10, 35);
-  point((x*0.2)+250, (y*0.2)+250);
+  point((x*0.05)+250, (y*0.05)+250);
 }
 
 void serialEvent (Serial myPort)

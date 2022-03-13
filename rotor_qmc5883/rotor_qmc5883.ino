@@ -19,8 +19,8 @@ MechaQMC5883 qmc;
 #define HMC_REFRESH_INTERVAL 1000
 
 // qmc offset
-int magn_off_x = 272;
-int magn_off_y = -570;
+int magn_off_x = 560;
+int magn_off_y = -1505;
 
 // encoder variables
 volatile int enc_data;
@@ -36,12 +36,13 @@ int FastMultiplier = 10;          // FastTrack multiplier
 
 // antenna variables
 volatile unsigned int AzAnt = 0;  // antenna azimuth (real)
-unsigned int magn_azim;           // magnetic azimuth (real)
+int magn_azim;           // magnetic azimuth (real)
 unsigned int AzAnt_old = 0;
 unsigned int AzMan = 0;           // manually set azimuth (requested)
 unsigned int AzMan_old = 0;
 boolean RunTracking = false;      // Rotating enabled
 boolean RotateRight = false;      // Rotate direction (right=true, left=false)
+int correctionAngle = 0;          // correction angle for qmc
 
 // additional variables
 const String code_version = "1.1";   // version
@@ -92,7 +93,7 @@ void setup() {
 //// display info on startup ////
 void displayStartInfo() {
   lcd.setCursor(0, 0);
-  lcd.print("  Sterownik rotora  ");
+  lcd.print("       ROTOR        ");
   delay(500);
   lcd.setCursor(0, 1);
   lcd.print("--------------------");
@@ -142,6 +143,7 @@ void loop() {
         case 3:                         // ResetAzimuth
           AzMan=0;
           AzAnt=0;
+          correctionAngle = magn_azim;
           break;
       }
     }
@@ -325,12 +327,9 @@ void GetMagneticAzimuth() {
     int x,y,z;
     qmc.read(&x,&y,&z);
 
-    float heading = atan2(x - magn_off_x, y - magn_off_y);
-    float correctionAngle = 85 / (180 / M_PI);
-    heading += correctionAngle;
-    if (heading < 0)      { heading += 2 * PI; }
-    if (heading > 2 * PI) { heading -= 2 * PI; }
-    magn_azim = heading * 180/M_PI; 
+    magn_azim = int((180/PI) * atan2(x - magn_off_x, y - magn_off_y)) - correctionAngle;
+    if (magn_azim < 0)  { magn_azim += 360; }
+    magn_azim %= 360;
   }
 }
 
