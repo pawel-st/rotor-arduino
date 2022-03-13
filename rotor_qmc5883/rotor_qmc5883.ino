@@ -26,8 +26,8 @@ int magn_off_y = -1505;
 volatile int enc_data;
 
 // menu variables
-# define menuSize 4
-char *menu[] ={"Auto Track","Manual Track","Fast Track","Reset Azimuth"};
+# define menuSize 5
+char *menu[] ={"Auto Track","Manual Track","Fast Track","Reset Azimuth","Align Magn to North"};
 bool menu_mode = true;            // starting in menu mode
 bool AutoTrackEnabled = false;    // AutoTrack mode
 bool ManualTrackEnabled = false;  // ManualTrack mode
@@ -45,7 +45,7 @@ boolean RotateRight = false;      // Rotate direction (right=true, left=false)
 int correctionAngle = 0;          // correction angle for qmc
 
 // additional variables
-const String code_version = "1.1";   // version
+const String code_version = "1.2";   // version
 char lcd_chars[4];
 char lcd_line[20];
 volatile unsigned long sens_last_interrupt_time = 0;
@@ -143,7 +143,10 @@ void loop() {
         case 3:                         // ResetAzimuth
           AzMan=0;
           AzAnt=0;
-          correctionAngle = magn_azim;
+          break;
+
+        case 4:                         // AlignMagnToNorth
+          correctionAngle = -magn_azim;
           break;
       }
     }
@@ -195,6 +198,18 @@ void displayMenu() {
       lcd.setCursor(17,3);
       lcd.print(lcd_chars);
       break;
+
+    case 4:                 // display if menu 4 chosen
+      GetMagneticAzimuth();
+      lcd.setCursor(0,3);
+      lcd.print("Mag: ");
+      sprintf(lcd_chars, "%03d", magn_azim);
+      lcd.setCursor(5,3);
+      lcd.print(lcd_chars);
+      lcd.setCursor(12,3);
+      lcd.print("         ");
+      break;
+
           
     default:
       lcd.setCursor(0,3);
@@ -327,8 +342,10 @@ void GetMagneticAzimuth() {
     int x,y,z;
     qmc.read(&x,&y,&z);
 
-    magn_azim = int((180/PI) * atan2(x - magn_off_x, y - magn_off_y)) - correctionAngle;
-    if (magn_azim < 0)  { magn_azim += 360; }
+    magn_azim = int((180/PI) * atan2(x - magn_off_x, y - magn_off_y)) + correctionAngle;
+    while (magn_azim < 0) {
+      magn_azim += 360;
+    }
     magn_azim %= 360;
   }
 }
