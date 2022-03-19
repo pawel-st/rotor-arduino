@@ -2,6 +2,7 @@
 #include <Wire.h>
 #include <MechaQMC5883.h>
 #include <LiquidCrystal_I2C.h>
+#include <EEPROM.h>
 LiquidCrystal_I2C lcd(0x27,20,4);
 MechaQMC5883 qmc;
 
@@ -14,6 +15,7 @@ MechaQMC5883 qmc;
 #define MOTOR_LEFT_PIN 10
 #define MOTOR_RIGHT_PIN 11
 #define SENSOR_PIN 2
+#define VOLT_PIN A1
 
 // qmc refresh (ms)
 #define HMC_REFRESH_INTERVAL 1000
@@ -26,8 +28,8 @@ int magn_off_y = -1505;
 volatile int enc_data;
 
 // menu variables
-# define menuSize 5
-char *menu[] ={"Auto Track","Manual Track","Fast Track","Reset Azimuth","Align Magn to North"};
+# define menuSize 6
+char *menu[] ={"Auto Track","Manual Track","Fast Track","Reset Azimuth","Align Magn to North","A1 DC Voltage"};
 bool menu_mode = true;            // starting in menu mode
 bool AutoTrackEnabled = false;    // AutoTrack mode
 bool ManualTrackEnabled = false;  // ManualTrack mode
@@ -43,6 +45,8 @@ unsigned int AzMan_old = 0;
 boolean RunTracking = false;      // Rotating enabled
 boolean RotateRight = false;      // Rotate direction (right=true, left=false)
 int correctionAngle = 0;          // correction angle for qmc
+unsigned int Volt = 0;
+bool eeprom_written = false;
 
 // additional variables
 const String code_version = "1.2";   // version
@@ -55,6 +59,7 @@ unsigned long hmc_previous_millis;
 
 ////  setup ////
 void setup() {
+  read_eeprom();
   lcd.init(); 
   lcd.begin(20,4);
   lcd.backlight();
@@ -90,6 +95,17 @@ void setup() {
   qmc.setMode(Mode_Continuous,ODR_200Hz,RNG_8G,OSR_512);
 }
 
+
+//// read data from EEPROM ////
+void read_eeprom() {
+  AzAnt = EEPROM.read(0) + 256 * EEPROM.read(1);
+  if (AzAnt>359) { AzAnt=359; }   // in case some out of range stuff in eeprom
+  AzMan = EEPROM.read(2) + 256 * EEPROM.read(3);
+  if (AzMan>359) { AzMan=359; }   // in case some out of range stuff in eeprom
+  correctionAngle = EEPROM.read(4) + 256 * EEPROM.read(5);
+  if (correctionAngle>359)  { correctionAngle=359;  }   // in case some out of range stuff in eeprom
+}
+
 //// display info on startup ////
 void displayStartInfo() {
   lcd.setCursor(0, 0);
@@ -110,6 +126,13 @@ void displayStartInfo() {
 
 ///// main loop //////
 void loop() {
+  // write to eeprom if power goes down
+  Volt = analogRead(A1);
+  if ((Volt < 800) && (Volt > 0) && (!eeprom_written)) {    // Volt = 0 when powered from USB port
+    write_eeprom();
+    eeprom_written = true;
+  }
+    
   // menu mode 
   if (menu_mode) {   // we are in menu mode
     if (enc_data < 0) {enc_data = 0;}
@@ -143,10 +166,15 @@ void loop() {
         case 3:                         // ResetAzimuth
           AzMan=0;
           AzAnt=0;
+          menu_mode = true;
           break;
 
         case 4:                         // AlignMagnToNorth
-          correctionAngle = -magn_azim;
+          correctionAngle = magn_azim;
+          menu_mode = true;
+          break;
+
+        default:
           break;
       }
     }
@@ -210,7 +238,10 @@ void displayMenu() {
       lcd.print("         ");
       break;
 
-          
+    case 5:                 // DisplayA1DCVoltage if menu5 chosen
+      displayDCVoltage();
+      break;
+
     default:
       lcd.setCursor(0,3);
       lcd.print("                    ");
@@ -282,7 +313,6 @@ void Tracking() {
   display_AzMag();
 }
 
-
 //// display only AzMan ////
 void display_AzMan() {
   sprintf(lcd_chars, "%03d", AzMan);
@@ -306,6 +336,19 @@ void display_AzMag() {
   lcd.setCursor(17,2);
   lcd.print(lcd_chars);
 }
+
+//// display DC Voltage on A1 pin ////
+void displayDCVoltage() {
+  Volt = analogRead(A1);
+  sprintf(lcd_chars, "%04d", Volt);
+  lcd.setCursor(0,3);
+  lcd.print("V=");
+  lcd.setCursor(2,3);
+  lcd.print(lcd_chars);
+  lcd.setCursor(6,3);
+  lcd.print("              ");
+}
+
 
 //// display lcd info in Tracking mode (auto and manual) ////
 void DisplayTrackInfo(byte trackmode) {
@@ -342,7 +385,7 @@ void GetMagneticAzimuth() {
     int x,y,z;
     qmc.read(&x,&y,&z);
 
-    magn_azim = int((180/PI) * atan2(x - magn_off_x, y - magn_off_y)) + correctionAngle;
+    magn_azim = int((180/PI) * atan2(x - magn_off_x, y - magn_off_y)) - correctionAngle;
     while (magn_azim < 0) {
       magn_azim += 360;
     }
@@ -387,6 +430,28 @@ void RotateAntenna() {
     digitalWrite(MOTOR_RIGHT_PIN, HIGH);
   }
 }
+
+//// write data to EEPROM ////
+void write_eeprom() {
+  byte msb, lsb;
+
+  msb = AzAnt/256;
+  lsb = AzAnt - (msb * 256);
+  EEPROM.write(0, lsb);
+  EEPROM.write(1, msb);
+
+  msb = AzMan/256;
+  lsb = AzMan - (msb * 256);
+  EEPROM.write(2, lsb);
+  EEPROM.write(3, msb);
+
+  msb = correctionAngle/256;
+  lsb = correctionAngle - (msb * 256);
+  EEPROM.write(4, lsb);
+  EEPROM.write(5, msb);
+}
+
+
 
 //// function called by sensor interrupt ////
 void sensor_blink() {
