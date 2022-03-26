@@ -170,7 +170,9 @@ void loop() {
           break;
 
         case 4:                         // AlignMagnToNorth
-          correctionAngle = magn_azim;
+          int x,y,z;
+          qmc.read(&x,&y,&z);
+          correctionAngle = int((180/PI) * atan2(x - magn_off_x, y - magn_off_y));
           menu_mode = true;
           break;
 
