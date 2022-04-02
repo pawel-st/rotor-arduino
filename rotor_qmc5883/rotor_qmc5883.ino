@@ -28,11 +28,10 @@ int magn_off_y = -1505;
 volatile int enc_data;
 
 // menu variables
-# define menuSize 6
-char *menu[] ={"Auto Track","Manual Track","Fast Track","Reset Azimuth","Align Magn to North","A1 DC Voltage"};
+# define menuSize 5
+char *menu[] ={"Ant Track","Fast Track","Reset Azimuth","Align Magn to North","A1 DC Voltage"};
 bool menu_mode = true;            // starting in menu mode
-bool AutoTrackEnabled = false;    // AutoTrack mode
-bool ManualTrackEnabled = false;  // ManualTrack mode
+bool AntTrackEnabled = false;    // AutoTrack mode
 bool FastTrackEnabled = false;    // FastTrack enable/disable
 int FastMultiplier = 10;          // FastTrack multiplier
 
@@ -144,32 +143,25 @@ void loop() {
       while(digitalRead(ENC_SW_PIN)==LOW);
 
       switch(enc_data) {
-        case 0:                         // AutoTrack
-          AutoTrackEnabled = true;
+        case 0:                         // AntTrack
+          AntTrackEnabled = true;
           menu_mode = false;
           enc_data = AzMan;
-          DisplayTrackInfo(0);
+          DisplayTrackInfo();
           break;
 
-        case 1:                         // ManualTrack
-          ManualTrackEnabled = true;
-          menu_mode = false;
-          enc_data = AzMan;
-          DisplayTrackInfo(1);
-          break;
-
-        case 2:                         // FastTrack
+        case 1:                         // FastTrack
           FastTrackEnabled = !FastTrackEnabled;
           menu_mode = true;
           break;
 
-        case 3:                         // ResetAzimuth
+        case 2:                         // ResetAzimuth
           AzMan=0;
           AzAnt=0;
           menu_mode = true;
           break;
 
-        case 4:                         // AlignMagnToNorth
+        case 3:                         // AlignMagnToNorth
           int x,y,z;
           qmc.read(&x,&y,&z);
           correctionAngle = int((180/PI) * atan2(x - magn_off_x, y - magn_off_y));
@@ -180,13 +172,13 @@ void loop() {
           break;
       }
     }
-  } else {          // we are not in menu mode, either AutoTracking or ManualTracking
-    if (AutoTrackEnabled) {
+  } else {          // we are not in menu mode we track Antenna
+    if (AntTrackEnabled) {
       RunAutoTrack();
     }
-    if (ManualTrackEnabled) {
-      RunManualTrack();
-    }
+//    if (ManualTrackEnabled) {
+//      RunManualTrack();
+//    }
   }
 }
 
@@ -206,7 +198,7 @@ void displayMenu() {
   lcd.print("                    ");
 
   switch(enc_data) {
-    case 2:                 // display if menu 2 chosen 
+    case 1:                 // display if menu 1 chosen (FastTrack)
       lcd.setCursor(0,3);
       if (FastTrackEnabled) {
         lcd.print("enabled             ");
@@ -215,7 +207,7 @@ void displayMenu() {
       }
       break;
 
-    case 3:                 // display if menu 3 chosen
+    case 2:                 // display if menu 2 chosen (Reset Azimuth)
       lcd.setCursor(0,3);
       lcd.print("Ant: ");
       sprintf(lcd_chars, "%03d", AzAnt);
@@ -229,7 +221,7 @@ void displayMenu() {
       lcd.print(lcd_chars);
       break;
 
-    case 4:                 // display if menu 4 chosen
+    case 3:                 // display if menu 3 chosen (Align Magn to North)
       GetMagneticAzimuth();
       lcd.setCursor(0,3);
       lcd.print("Mag: ");
@@ -240,7 +232,7 @@ void displayMenu() {
       lcd.print("         ");
       break;
 
-    case 5:                 // DisplayA1DCVoltage if menu5 chosen
+    case 4:                 // DisplayA1DCVoltage if menu 4 chosen
       displayDCVoltage();
       break;
 
@@ -257,7 +249,7 @@ void RunAutoTrack() {
   if (digitalRead(BUTTON1_PIN)==HIGH) {     // exit RunAutoTrack and go back to menu mode if button1 pressed and released
     while(digitalRead(BUTTON1_PIN)==HIGH);
     menu_mode = true;
-    AutoTrackEnabled = false;
+    AntTrackEnabled = false;
     enc_data = 0;
   }
 
@@ -276,21 +268,7 @@ void RunAutoTrack() {
   }
 }
 
-//// Manual Tracking ////    
-void RunManualTrack() {
-  Tracking();
-  RunTracking = true;   // in ManualTrack mode antenna tracked all time until exit to menu
-
-  if (digitalRead(BUTTON1_PIN)==HIGH) {     // exit RunAutoTrack and go back to menu mode if button1 pressed and released
-    while(digitalRead(BUTTON1_PIN)==HIGH);
-    menu_mode = true;
-    ManualTrackEnabled = false;
-    RunTracking = false;
-    enc_data = 0;
-  }
-}
-
-//// Antenna tracking - common function ////
+//// Antenna tracking ////
 void Tracking() {
   if (RunTracking) { RotateAntenna(); }
   
@@ -352,17 +330,10 @@ void displayDCVoltage() {
 }
 
 
-//// display lcd info in Tracking mode (auto and manual) ////
-void DisplayTrackInfo(byte trackmode) {
+//// display lcd info in Tracking mode ////
+void DisplayTrackInfo() {
   lcd.setCursor(0,0);
-  switch(trackmode) {
-    case 0:
-      lcd.print(" Tracking : Auto    ");
-      break;
-    case 1:
-      lcd.print(" Tracking : Manual  ");
-      break;
-  }
+  lcd.print(" Antenna Tracking");
   lcd.setCursor(0,1);
   lcd.print("--------------------");
   lcd.setCursor(0,2);
