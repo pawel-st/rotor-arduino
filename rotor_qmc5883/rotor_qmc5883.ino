@@ -28,8 +28,8 @@ int magn_off_y = -1505;
 volatile int enc_data;
 
 // menu variables
-# define menuSize 5
-char *menu[] ={"Ant Track","Fast Track","Reset Azimuth","Align Magn to North","A1 DC Voltage"};
+# define menuSize 4
+char *menu[] ={"Ant Track","Reset Azimuth","Align Magn to North","A1 DC Voltage"};
 bool menu_mode = true;            // starting in menu mode
 bool AntTrackEnabled = false;    // AutoTrack mode
 bool FastTrackEnabled = false;    // FastTrack enable/disable
@@ -150,18 +150,13 @@ void loop() {
           DisplayTrackInfo();
           break;
 
-        case 1:                         // FastTrack
-          FastTrackEnabled = !FastTrackEnabled;
-          menu_mode = true;
-          break;
-
-        case 2:                         // ResetAzimuth
+        case 1:                         // ResetAzimuth
           AzMan=0;
           AzAnt=0;
           menu_mode = true;
           break;
 
-        case 3:                         // AlignMagnToNorth
+        case 2:                         // AlignMagnToNorth
           int x,y,z;
           qmc.read(&x,&y,&z);
           correctionAngle = int((180/PI) * atan2(x - magn_off_x, y - magn_off_y));
@@ -176,9 +171,6 @@ void loop() {
     if (AntTrackEnabled) {
       RunAutoTrack();
     }
-//    if (ManualTrackEnabled) {
-//      RunManualTrack();
-//    }
   }
 }
 
@@ -198,16 +190,7 @@ void displayMenu() {
   lcd.print("                    ");
 
   switch(enc_data) {
-    case 1:                 // display if menu 1 chosen (FastTrack)
-      lcd.setCursor(0,3);
-      if (FastTrackEnabled) {
-        lcd.print("enabled             ");
-      } else {
-        lcd.print("disabled            ");
-      }
-      break;
-
-    case 2:                 // display if menu 2 chosen (Reset Azimuth)
+    case 1:                 // display if menu 1 chosen (Reset Azimuth)
       lcd.setCursor(0,3);
       lcd.print("Ant: ");
       sprintf(lcd_chars, "%03d", AzAnt);
@@ -221,7 +204,7 @@ void displayMenu() {
       lcd.print(lcd_chars);
       break;
 
-    case 3:                 // display if menu 3 chosen (Align Magn to North)
+    case 2:                 // display if menu 2 chosen (Align Magn to North)
       GetMagneticAzimuth();
       lcd.setCursor(0,3);
       lcd.print("Mag: ");
@@ -232,7 +215,7 @@ void displayMenu() {
       lcd.print("         ");
       break;
 
-    case 4:                 // DisplayA1DCVoltage if menu 4 chosen
+    case 3:                 // DisplayA1DCVoltage if menu 3 chosen
       displayDCVoltage();
       break;
 
@@ -245,6 +228,12 @@ void displayMenu() {
 //// Auto Tracking ////
 void RunAutoTrack() {
   Tracking();
+
+  if (digitalRead(BUTTON2_PIN)==HIGH) {     // toggle FastTrack mode on/off
+    while(digitalRead(BUTTON2_PIN)==HIGH);
+    FastTrackEnabled = !FastTrackEnabled;
+  }
+
 
   if (digitalRead(BUTTON1_PIN)==HIGH) {     // exit RunAutoTrack and go back to menu mode if button1 pressed and released
     while(digitalRead(BUTTON1_PIN)==HIGH);
@@ -290,7 +279,7 @@ void Tracking() {
     display_AzAnt(); 
     AzAnt_old = AzAnt;
   }
-  display_AzMag();
+  display_AzMag_FastTrack();
 }
 
 //// display only AzMan ////
@@ -307,9 +296,14 @@ void display_AzAnt() {
   lcd.print(lcd_chars);
 }
 
-//// display only magnetic azimuth ////
-void display_AzMag() {
-  lcd.setCursor(11,2);
+//// display magnetic azimuth and FastTrack status ////
+void display_AzMag_FastTrack() {
+  lcd.setCursor(9,2);
+  if (FastTrackEnabled) {
+    lcd.print("F ");
+  } else {
+    lcd.print("  ");
+  }
   lcd.print("Magn: ");
   GetMagneticAzimuth();
   sprintf(lcd_chars, "%03d", magn_azim);
