@@ -19,6 +19,8 @@ MechaQMC5883 qmc;
 
 // qmc refresh (ms)
 #define HMC_REFRESH_INTERVAL 1000
+// timeout when no hall sensor pulses detected
+#define ANT_TRACK_NO_PULSES_TIMEOUT 1000
 
 // qmc offset
 int magn_off_x = 560;
@@ -54,7 +56,8 @@ char lcd_line[20];
 volatile unsigned long sens_last_interrupt_time = 0;
 volatile unsigned long enc_last_interrupt_time = 0;
 unsigned long hmc_previous_millis;
-
+unsigned long ant_tracking_start_millis = 0;
+unsigned int AzAnt_tracking_start;
 
 ////  setup ////
 void setup() {
@@ -246,6 +249,8 @@ void RunAutoTrack() {
     while(digitalRead(ENC_SW_PIN)==LOW);
     if (RunTracking==false) {
       RunTracking=true;
+      ant_tracking_start_millis = millis();
+      AzAnt_tracking_start = AzAnt;
     } else {
       RunTracking=false;                // stop rotation immediately
       if (digitalRead(SENSOR_PIN)==LOW) { delay(80); }
@@ -395,6 +400,16 @@ void RotateAntenna() {
     lcd.print("        ");
     if (digitalRead(SENSOR_PIN)==LOW) { delay(20); }
     digitalWrite(MOTOR_RIGHT_PIN, HIGH);
+  }
+
+  // stop and display error if we rotate but no pulses received from sensor (error condition)
+  if (((millis()-ant_tracking_start_millis)>ANT_TRACK_NO_PULSES_TIMEOUT) && (abs(AzAnt - AzAnt_tracking_start)<2)) {
+    RunTracking = false;
+    lcd.setCursor(10,3);
+    lcd.print(" ERROR! ");
+    if (digitalRead(SENSOR_PIN)==LOW) { delay(20); }
+    digitalWrite(MOTOR_RIGHT_PIN, HIGH);
+    digitalWrite(MOTOR_LEFT_PIN, HIGH);
   }
 }
 
