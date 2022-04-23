@@ -35,7 +35,7 @@ char *menu[] ={"Ant Track","Reset Azimuth","Align Magn to North","A1 DC Voltage"
 bool menu_mode = true;            // starting in menu mode
 bool AntTrackEnabled = false;    // AutoTrack mode
 bool FastTrackEnabled = false;    // FastTrack enable/disable
-int FastMultiplier = 10;          // FastTrack multiplier
+#define FAST_STEP 10        // FastTrack step
 
 // antenna variables
 volatile unsigned int AzAnt = 0;  // antenna azimuth (real)
@@ -267,14 +267,8 @@ void Tracking() {
   if (RunTracking) { RotateAntenna(); }
   
   if (enc_data < 0) { enc_data = 0; };
-  if (enc_data > 35 && FastTrackEnabled) { enc_data = 35; }
-  if (enc_data > 359 && !FastTrackEnabled) { enc_data = 359; }
-
-  if (FastTrackEnabled) {
-    AzMan = enc_data * FastMultiplier;
-  } else {
-    AzMan = enc_data;
-  }
+  if (enc_data > 359) { enc_data = 359; };
+  AzMan = enc_data;
 
   if (AzMan != AzMan_old) {
     display_AzMan(); 
@@ -451,9 +445,17 @@ void enc_inter() {
     enc_last_interrupt_time = now_millis;
     delayMicroseconds(500);
     if(digitalRead(ENC_DATA_PIN)) {
-      enc_data++;
+      if (FastTrackEnabled) {
+        enc_data = enc_data + FAST_STEP;
+      } else {
+        enc_data++;
+      }
     } else {
-      enc_data--;
+      if (FastTrackEnabled) {
+        enc_data = enc_data - FAST_STEP;
+      } else {
+        enc_data--;
+      }
     }
   }
 }
