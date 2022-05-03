@@ -59,6 +59,9 @@ unsigned long hmc_previous_millis;
 unsigned long ant_tracking_start_millis = 0;
 unsigned int AzAnt_tracking_start;
 
+String serial_buffer = "";
+boolean end_serial = false;
+
 ////  setup ////
 void setup() {
   read_eeprom();
@@ -95,6 +98,8 @@ void setup() {
   Wire.begin();
   qmc.init();
   qmc.setMode(Mode_Continuous,ODR_200Hz,RNG_8G,OSR_512);
+
+  Serial.begin(9600);
 }
 
 
@@ -126,6 +131,30 @@ void displayStartInfo() {
   delay(3500);
 }
 
+///// serial communication //////
+void serial_handler() {
+  while (Serial.available())
+  {
+    char serial_char = Serial.read();
+    if (serial_char == 13) {
+      end_serial = true;
+    } else {
+      serial_buffer += char(serial_char);
+    }
+  }
+
+  if (end_serial) {
+    end_serial = false;
+    if (serial_buffer.substring(0,1) == "C") {
+      char buff[8];
+      sprintf(buff, "+%03d", AzAnt);
+      Serial.println(buff);
+    }
+    serial_buffer = "";
+  }
+}
+
+
 ///// main loop //////
 void loop() {
   // write to eeprom if power goes down
@@ -134,7 +163,13 @@ void loop() {
     write_eeprom();
     eeprom_written = true;
   }
-    
+
+  // serial communication 
+  if (Serial.available() > 0)
+  {
+    serial_handler();
+  }
+  
   // menu mode 
   if (menu_mode) {   // we are in menu mode
     if (enc_data < 0) {enc_data = 0;}
