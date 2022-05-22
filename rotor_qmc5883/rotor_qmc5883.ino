@@ -149,8 +149,16 @@ void serial_handler() {
       char buff[8];
       sprintf(buff, "+%03d", AzAnt);
       Serial.println(buff);
+      serial_buffer = "";
     }
-    serial_buffer = "";
+    if ((serial_buffer.substring(0,1) == "M") || (serial_buffer.substring(0,1) == "W")) {
+      AzMan = serial_buffer.substring(1).toInt();
+      serial_buffer = "";
+      AntTrackEnabled = true;
+      menu_mode = false;
+      enc_data = AzMan;
+      DisplayTrackInfo();
+    }
   }
 }
 
