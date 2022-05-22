@@ -50,7 +50,7 @@ unsigned int Volt = 0;
 bool eeprom_written = false;
 
 // additional variables
-const String code_version = "1.2";   // version
+const String code_version = "1.3";   // version
 char lcd_chars[4];
 char lcd_line[20];
 volatile unsigned long sens_last_interrupt_time = 0;
